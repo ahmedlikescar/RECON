@@ -1,0 +1,674 @@
+RECON — FINAL AUTONOMOUS CODING-AGENT MASTER PROMPT
+Complete original engineering specification, requirements, use cases, REA integration, and ML implementation directive
+==================================================================================
+
+RECON
+INTELLIGENT BINARY ANALYSIS & FUNCTION SIMILARITY ENGINE
+Complete Engineering Master Prompt • Software Requirements Specification • Use Cases • ML Research Plan
+Version 1.0  |  October 2026  |  Local-first, open-source, no paid AI APIs
+
+## Executive summary
+
+RECON is a static binary analysis application that ingests authorized PE/ELF binaries, discovers and disassembles functions, extracts instruction and control-flow features, and ranks potentially equivalent functions across different compilations using reproducible machine-learning embeddings. The product exposes evidence, uncertainty, and provenance instead of claiming to recover source code or prove maliciousness. It must never execute analyzed binaries.
+
+## 0. Autonomous coding-agent master instruction
+
+Act as a senior systems engineer, reverse engineer, ML engineer, security engineer, and QA lead. Build a complete, working RECON repository—not a mockup. Read this specification as the authoritative requirements baseline. Plan in milestones, implement incrementally, run tests, fix failures, and keep documentation current. Never claim a test or benchmark was run unless it actually ran. Do not silently substitute fake embeddings, fake analysis, or hardcoded UI results. Ask only when blocked by an irreversible decision; otherwise document reasonable defaults. Prioritize correct, reproducible static analysis and honest ML evaluation over decorative features.
+
+## 1. Product scope and goals
+
+Primary problem: compare functions from separately compiled versions of open-source programs and retrieve semantically related implementations despite changed instruction sequences.
+Target users: students, reverse engineers, compiler researchers, and security analysts working on binaries they are authorized to inspect.
+Core workflows: import binary → static parse → discover functions → disassemble → extract CFG/features → compare → inspect evidence → export findings.
+MVP scope: x86-64 ELF, static analysis, instruction baseline, labeled cross-optimization retrieval evaluation, local desktop-served web UI.
+Later scope: PE x86-64, neural embeddings, scalable FAISS index, CFG graph encoder, multi-binary collections, and offline research reports.
+Out of scope: dynamic malware execution, exploitation, automated patching, decompilation accuracy guarantees, definitive malware verdicts, and bypassing software protections.
+
+## 2. Mandatory stack and project structure
+
+Layer | Selected technology | Notes
+Core language | Python 3.12 | Typed modules, uv or pip dependency lock
+Binary formats | LIEF | PE/ELF metadata and sections
+Disassembly | Capstone; optional Ghidra headless | Capstone decodes; Ghidra optional for higher-quality function discovery
+CFG and analysis | NetworkX | Basic blocks, branch edges, graph statistics
+ML | PyTorch, scikit-learn | Baselines first; trainable encoder second
+Similarity index | FAISS or NumPy exact search | Local persisted index with model-version metadata
+API | FastAPI + Pydantic | Local-first HTTP API
+UI | React + TypeScript + Vite | Function explorer, comparisons, CFG
+Persistence | SQLite + local artifacts | SQLAlchemy + Alembic
+Testing | pytest, Vitest, Playwright | Fixtures and reproducible builds
+Quality | Ruff, mypy, GitHub Actions | Security and deterministic CI
+
+Suggested repository: backend/recon/{api,analysis,parsers,disasm,cfg,features,ml,indexing,storage,security}; frontend/src/{pages,components,api}; experiments/; scripts/; tests/{unit,integration,fixtures}; docs/; datasets/manifests/; models/; AGENTS.md.
+
+## 3. Functional requirements (FR)
+
+ID | Requirement | Priority
+FR-001 | Import a local PE or ELF binary through UI or API; record SHA-256 and file metadata. | High
+FR-002 | Reject unsupported, corrupt, oversized, or encrypted/packed inputs with actionable errors. | High
+FR-003 | Identify binary format, architecture, bitness, entry point, sections, and imports where available. | High
+FR-004 | Never execute imported binaries; process inputs as untrusted data only. | Critical
+FR-005 | Discover function entry points using symbol tables and documented static heuristics. | High
+FR-006 | Display confidence and provenance for heuristically discovered functions. | High
+FR-007 | Disassemble supported machine code into addresses, mnemonics, and operands. | High
+FR-008 | Partition functions into basic blocks and derive directed control-flow graphs. | High
+FR-009 | Show instruction listings and CFG for a selected function. | High
+FR-010 | Normalize instruction tokens with documented handling of registers, immediates, and addresses. | High
+FR-011 | Extract baseline features: opcode counts, n-grams, size, blocks, edges, and graph metrics. | High
+FR-012 | Compute deterministic non-ML similarity baselines and store their scores. | High
+FR-013 | Build labeled pairs/groups of same-source functions compiled under differing settings. | Critical
+FR-014 | Store compiler, version, optimization, source commit, architecture, and function provenance. | Critical
+FR-015 | Split train/validation/test data by source project or source-function lineage to prevent leakage. | Critical
+FR-016 | Train a function-embedding model using reproducible seeds and saved configuration. | High
+FR-017 | Save model checkpoints, tokenizer/feature schema, metrics, and model version. | High
+FR-018 | Generate function embeddings for compatible analyzed binaries. | High
+FR-019 | Index embeddings and retrieve top-k nearest candidate functions. | High
+FR-020 | Filter comparisons by architecture, compiler, project, or index/model compatibility. | Medium
+FR-021 | Present ranked candidates with similarity scores, not misleading probabilities. | Critical
+FR-022 | Show side-by-side instructions, CFGs, metadata, and matching evidence. | High
+FR-023 | Let users choose two binaries or a query function for comparison. | High
+FR-024 | Track long analysis/index/training tasks with persisted status and errors. | High
+FR-025 | Allow cancellation of queued jobs and safe cleanup of partial artifacts. | Medium
+FR-026 | Cache analysis by file hash, analyzer version, and settings. | High
+FR-027 | Invalidate incompatible cached embeddings after feature/model upgrades. | High
+FR-028 | Search functions by address, symbol, mnemonic, and metadata. | Medium
+FR-029 | Export a reproducible JSON/CSV analysis or comparison report. | Medium
+FR-030 | Provide a dataset-build CLI for compiling authorized open-source examples. | High
+FR-031 | Run evaluation reporting Recall@1/5/10, MRR, and baseline comparisons. | Critical
+FR-032 | Report results separately by compiler, optimization, project, and function size. | High
+FR-033 | Provide an offline demo using known, safely compiled example binaries. | High
+FR-034 | Delete binaries, derived artifacts, indexes, and metadata on user request. | Medium
+FR-035 | Record audit-friendly provenance of analysis runs and experiment configurations. | High
+FR-036 | Reject unsupported model/index feature-schema combinations. | High
+FR-037 | Permit optional Ghidra integration but degrade gracefully without it. | Medium
+FR-038 | Display analysis limitations and potential false matches within the UI. | Critical
+FR-039 | Support only local access by default; require explicit secure configuration for network exposure. | High
+FR-040 | Provide health, version, and capability endpoints. | Medium
+
+
+## 4. Non-functional requirements (NFR)
+
+ID | Category | Requirement
+NFR-001 | Security | Never execute or dynamically load analyzed files; parse in a resource-constrained isolated process.
+NFR-002 | Security | Reject path traversal, unsafe archives, oversized sections, malformed inputs, and unexpected architectures.
+NFR-003 | Security | Bind API to loopback by default; validate CORS, uploads, paths, and file access.
+NFR-004 | Performance | Benchmark import, disassembly, feature extraction, indexing, and retrieval on specified hardware.
+NFR-005 | Performance | Set measured MVP targets only after baseline profiling; never promise universal runtime guarantees.
+NFR-006 | Performance | Return top-k search results from an already built index without retraining.
+NFR-007 | Reliability | Task states persist across API restarts; failures do not corrupt the index.
+NFR-008 | Reliability | Index writes use atomic replacement or transactional updates.
+NFR-009 | Reproducibility | Fix random seeds and record Python, package, compiler, OS, and model versions.
+NFR-010 | Reproducibility | Data manifests and split definitions are versioned and independently inspectable.
+NFR-011 | ML validity | Report leakage checks and non-ML baselines before neural results.
+NFR-012 | ML validity | Keep test sets untouched until model selection is complete.
+NFR-013 | ML validity | Distinguish similarity score from probability, correctness, and malware classification.
+NFR-014 | Compatibility | MVP supports x86-64 ELF; unsupported targets fail clearly.
+NFR-015 | Maintainability | Use modular typed interfaces, migrations, and documented extension points.
+NFR-016 | Maintainability | Unit, integration, and end-to-end tests run in CI.
+NFR-017 | Usability | Every finding links to addresses, disassembly, and evidence.
+NFR-018 | Usability | Keyboard-accessible UI with clear progress, empty states, and failure explanations.
+NFR-019 | Privacy | Local-first storage; no binary or analysis data sent to third-party AI services.
+NFR-020 | Cost | No mandatory paid API, subscription, GPU cloud, or hosted database.
+NFR-021 | Observability | Structured logs include job IDs and timings without leaking binary contents.
+NFR-022 | Portability | Document Windows/macOS/Linux development limitations and supported host environments.
+NFR-023 | Data integrity | Hash and version artifacts; detect mismatched source files and index manifests.
+NFR-024 | Resource safety | Bound file size, memory, CPU time, job concurrency, and storage growth.
+NFR-025 | Documentation | Include setup, threat model, architecture, model card, dataset card, and benchmark protocol.
+
+
+## 5. Actors and permissions
+
+Actor | Description | Permissions
+Analyst | User inspecting authorized binaries | Import, browse, compare, export, delete
+ML researcher | User training/evaluating models | Build datasets, train, evaluate, inspect metrics
+Administrator | Owner of local installation | Configure limits, manage artifacts and models
+Analysis worker | Background process | Static parse/disassemble/extract/index
+External tool | Optional Ghidra installation | Provide static function discovery metadata
+
+
+## 6. Detailed use cases
+
+
+## UC-01 — Import binary
+
+Field | Specification
+Primary actor | Analyst
+Preconditions | Valid supported binary; local storage available
+Main success scenario | Select file; validate format/size; hash; persist metadata; enqueue analysis
+Postconditions | Binary is registered with status and provenance
+Alternative / exception flow | Unsupported/malformed file rejected without execution
+Requirements | FR-001–004, FR-024
+
+
+## UC-02 — Inspect functions
+
+Field | Specification
+Primary actor | Analyst
+Preconditions | Completed analysis
+Main success scenario | Select binary; list functions; choose address; view instructions and CFG
+Postconditions | Evidence-rich function view appears
+Alternative / exception flow | No symbols or incomplete CFG flagged
+Requirements | FR-005–009
+
+
+## UC-03 — Compare two binaries
+
+Field | Specification
+Primary actor | Analyst
+Preconditions | Both binaries analyzed
+Main success scenario | Select source/target; choose query; run baseline or model search; inspect ranked candidates
+Postconditions | Top-k candidates with comparable scores and evidence
+Alternative / exception flow | Model/index incompatibility prompts reindex
+Requirements | FR-012, FR-018–023
+
+
+## UC-04 — Search by function
+
+Field | Specification
+Primary actor | Analyst
+Preconditions | Indexed collection
+Main success scenario | Enter address/name/mnemonic; filter; select function; request nearest neighbors
+Postconditions | Relevant functions retrieved with provenance
+Alternative / exception flow | No matches shown clearly
+Requirements | FR-019–022, FR-028
+
+
+## UC-05 — Build training dataset
+
+Field | Specification
+Primary actor | ML researcher
+Preconditions | Authorized source projects and compilers
+Main success scenario | Choose project revisions/compilers/flags; compile; extract; label lineage; create manifests
+Postconditions | Versioned dataset with verified group labels
+Alternative / exception flow | Build failure or ambiguous mappings quarantined
+Requirements | FR-013–015, FR-030
+
+
+## UC-06 — Train embedding model
+
+Field | Specification
+Primary actor | ML researcher
+Preconditions | Validated training and validation splits
+Main success scenario | Select config; start training; track metrics; save checkpoints
+Postconditions | Reproducible model artifact and run report
+Alternative / exception flow | OOM/interruption saved as failure with diagnostics
+Requirements | FR-016–017, FR-024
+
+
+## UC-07 — Evaluate model
+
+Field | Specification
+Primary actor | ML researcher
+Preconditions | Frozen test set and compatible model
+Main success scenario | Run retrieval benchmark; compute metrics; compare baseline; stratify results
+Postconditions | Metrics and reproducible evaluation report
+Alternative / exception flow | Leakage/incompatibility blocks evaluation
+Requirements | FR-031–032, NFR-011–013
+
+
+## UC-08 — Export report
+
+Field | Specification
+Primary actor | Analyst
+Preconditions | Analysis or comparison completed
+Main success scenario | Choose export; include provenance, configuration, scores, limitations
+Postconditions | JSON/CSV report downloaded
+Alternative / exception flow | Missing artifacts flagged rather than fabricated
+Requirements | FR-029, FR-035
+
+
+## UC-09 — Cancel task
+
+Field | Specification
+Primary actor | Analyst
+Preconditions | Job queued or processing
+Main success scenario | Request cancellation; worker checks state; cleanup temporary outputs
+Postconditions | Safe cancellation or explicit cannot-cancel status
+Alternative / exception flow | Already completed job unchanged
+Requirements | FR-024–025
+
+
+## UC-10 — Delete binary
+
+Field | Specification
+Primary actor | Analyst
+Preconditions | Binary exists
+Main success scenario | Request deletion; confirm; remove dependent artifacts and metadata
+Postconditions | No orphaned user artifacts remain
+Alternative / exception flow | Shared content dependencies handled explicitly
+Requirements | FR-034
+
+
+## UC-11 — Load offline demo
+
+Field | Specification
+Primary actor | Analyst
+Preconditions | Demo fixtures installed
+Main success scenario | Open demo; select known compiled pair; inspect matches
+Postconditions | Working example with labeled ground truth
+Alternative / exception flow | Missing fixture explained with setup guidance
+Requirements | FR-033
+
+
+## UC-12 — Review uncertain match
+
+Field | Specification
+Primary actor | Analyst
+Preconditions | Ranked match available
+Main success scenario | Inspect CFG/instruction differences and metadata; compare alternatives
+Postconditions | User sees evidence and caveats, not a false certainty
+Alternative / exception flow | Missing CFG annotated as partial evidence
+Requirements | FR-021–022, FR-038
+
+
+## 7. User stories and acceptance criteria
+
+ID | User story | Acceptance criteria
+US-01 | As an analyst, I want to import a binary so I can inspect its static structure. | Given a valid x86-64 ELF, import creates a SHA-256-linked record and analysis job; invalid files fail safely.
+US-02 | As an analyst, I want a CFG and instruction view so I can verify why functions match. | Selecting a discovered function displays its address, instructions, CFG, and discovery provenance.
+US-03 | As an analyst, I want nearest-neighbor matches so I can locate corresponding functions. | A query returns ranked compatible candidates with score, model version, and links to evidence.
+US-04 | As a researcher, I want reproducible training data so I can trust evaluation. | Each sample has source lineage and compiler settings; group leakage check passes.
+US-05 | As a researcher, I want to compare ML with simple baselines so improvements are measurable. | Report includes Recall@k, MRR, baseline metrics, dataset split, and confidence intervals where feasible.
+US-06 | As a user, I want to run RECON without cloud accounts so my binaries remain private. | Fresh local setup analyzes bundled sample without API keys or network upload.
+US-07 | As an analyst, I want clear uncertainty so I do not mistake a high similarity score for proof. | Every ranked result labels scores as similarity and exposes limitations.
+US-08 | As an administrator, I want safe limits so untrusted binaries cannot exhaust my machine. | Oversized input and over-budget jobs terminate safely and leave valid job records.
+
+
+## 8. System workflows
+
+Import: browser → FastAPI validation → SHA-256 and format metadata → SQLite record → persistent job → sandboxed parser → function discovery → disassembly/CFG → stored artifacts → UI.
+Similarity: select query function → check feature schema/model version → normalize features → compute embedding → FAISS/exact nearest neighbors → metadata filters → ranked candidates → side-by-side evidence.
+Training: collect authorized source → compile build matrix → match function lineages → extract features → project-grouped split → baseline → model training → checkpoint → validation → frozen test evaluation.
+Failure: worker records phase-specific failure and diagnostic → deletes incomplete temporary artifacts → leaves previous valid indexes intact → user can retry when safe.
+Deletion: identify owned binary → remove references and derived artifacts → update index atomically → verify deletion and return status.
+
+## 9. Data contracts and database schema
+
+Entity | Important fields
+Binary | id, sha256, filename, format, architecture, bitness, size, imported_at, analyzer_version, status
+Function | id, binary_id, address, end_address, name, discovery_method, confidence, bytes_hash
+Instruction | function_id, address, mnemonic, operands, normalized_token, block_id
+BasicBlock | id, function_id, start_address, end_address, successor_ids
+FeatureSet | function_id, feature_schema_version, vector_path, statistics_json
+Embedding | function_id, model_id, embedding_version, vector_ref, indexed_at
+AnalysisJob | id, binary_id, type, state, progress, error_code, created_at, finished_at
+ModelRun | id, config_hash, dataset_version, split_hash, seed, metrics_json, checkpoint_path
+DatasetSample | id, source_project, commit, source_function_lineage, compiler, flags, binary_id, function_id
+Comparison | id, query_function_id, target_scope, model_version, created_at
+Match | comparison_id, target_function_id, rank, similarity_score, evidence_json
+
+Keep raw bytes and large tensors in versioned local artifact files, not as unbounded database blobs. Use foreign keys, schema migrations, atomic index updates, and explicit provenance. Separate scores generated by different models; never compare uncalibrated raw scores across embedding spaces.
+
+## 10. REST API contract (proposed)
+
+Method | Route | Purpose
+GET | /api/v1/health | Service health and version
+GET | /api/v1/capabilities | Supported architectures and analysis engines
+POST | /api/v1/binaries | Import validated binary
+GET | /api/v1/binaries | List imported binaries
+GET | /api/v1/binaries/{id} | Binary details and analysis status
+DELETE | /api/v1/binaries/{id} | Delete binary and derived artifacts
+GET | /api/v1/binaries/{id}/functions | Paginated function list
+GET | /api/v1/functions/{id} | Function metadata and disassembly
+GET | /api/v1/functions/{id}/cfg | Basic blocks and edges
+POST | /api/v1/comparisons | Create comparison / top-k retrieval
+GET | /api/v1/comparisons/{id} | Results and evidence
+GET | /api/v1/jobs/{id} | Job status and errors
+POST | /api/v1/jobs/{id}/cancel | Cancel safely
+POST | /api/v1/experiments/train | Start local model training
+POST | /api/v1/experiments/evaluate | Evaluate frozen model
+GET | /api/v1/experiments/{id} | Training/evaluation metrics
+GET | /api/v1/reports/{id}/export | Export JSON/CSV report
+
+All APIs require typed request/response schemas, pagination for large collections, stable error codes, strict file size limits, and clear 400/404/409/413/422 responses. Network deployment requires explicit authentication and authorization; loopback-only MVP may use single-user mode.
+
+## 11. ML methodology and scientific validity
+
+Dataset: choose a small set of permissively licensed C/C++ projects; compile same source revisions with GCC and Clang and optimization levels O0/O1/O2/O3 where feasible; retain complete build manifests.
+Ground truth: link corresponding functions using source-level identifiers/debug symbols/build metadata; record ambiguous/inlined/removed functions rather than forcing incorrect labels.
+Leakage control: group by source function lineage and ideally by project across splits. Avoid using near-identical source functions in both train and test.
+Baseline A: normalized opcode histogram with cosine similarity. Baseline B: instruction n-gram TF-IDF. Baseline C: CFG statistics.
+Model v1: token embedding + masked mean pooling or small 1D encoder; contrastive/triplet training on positive and hard-negative function pairs.
+Model v2: graph encoder using basic-block features and CFG adjacency only if v1 is validated.
+Evaluation: Recall@1/5/10, MRR, median rank, latency, index memory, subgroup performance by compiler/optimization/function length, and qualitative false-positive analysis.
+Reproducibility: dataset/model cards, code commit, seeds, environment, hardware, epoch count, optimizer, hyperparameters, checkpoint hashes.
+Threat to validity: inlining, dead-code elimination, compiler-generated helpers, missing symbols, disassembly errors, and datasets with trivial compiler signatures.
+
+## 12. Security, ethics, and scope restrictions
+
+Only analyze binaries the operator is authorized to inspect. Respect licensing and intellectual property rights.
+Never execute uploaded binaries. Static parsers are still attack surfaces; run in isolated worker processes with memory/time limits, restricted filesystem access, and no network access where feasible.
+Do not automatically classify a file as malware based on similarity alone. Report evidence and uncertainty.
+Do not use analysis to facilitate exploitation, bypass access controls, or distribute malicious payloads.
+Public hosting is not required; default to local-first deployment. If exposed publicly, add identity, quotas, secure file storage, per-user isolation, and abuse monitoring.
+Validate every file path, identifier, index metadata version, and exported filename. Avoid unsafe pickle loading of untrusted model artifacts.
+
+## 13. Test plan and traceability
+
+Test ID | Test case | Requirements
+T-01 | Valid ELF import and metadata verification | FR-001, FR-003
+T-02 | Malformed/oversized input rejected without execution | FR-002, FR-004; NFR-001–002
+T-03 | Disassembly and CFG fixture match known control flow | FR-005–009
+T-04 | Instruction normalization stable on golden fixtures | FR-010–011
+T-05 | Baseline ranks corresponding function above distractors on controlled sample | FR-012, FR-021
+T-06 | Dataset manifest and source-lineage leakage check | FR-013–015
+T-07 | Fixed-seed training produces compatible checkpoint and metrics | FR-016–017
+T-08 | Embedding/index version mismatch rejected | FR-018–020, FR-036
+T-09 | UI comparison displays source evidence and uncertainty | FR-021–023, FR-038
+T-10 | Job restart/cancellation does not corrupt artifacts | FR-024–027
+T-11 | Evaluation calculates Recall@k and MRR on known fixture | FR-031–032
+T-12 | Export includes provenance and model version | FR-029, FR-035
+T-13 | Offline demo works without any paid API key | FR-033; NFR-019–020
+T-14 | Deletion removes dependent records and artifacts | FR-034
+T-15 | Security tests cover path traversal, parser timeouts, and malformed files | NFR-001–003, NFR-024
+
+
+## 14. Implementation phases and deliverables
+
+Phase | Implementation | Exit criterion
+Phase 0 — Foundations | Repo, lint/type checks, architecture decisions, threat model, CLI skeleton, demo binary fixtures. | App boots locally; tests and CI pass.
+Phase 1 — Static analysis MVP | ELF parsing, function discovery, Capstone, CFG extraction, local persistence, API. | Known fixture produces correct instruction and CFG data.
+Phase 2 — Interactive explorer | React import flow, job statuses, function list, instruction and CFG panels. | End-to-end upload → inspect succeeds.
+Phase 3 — Similarity baselines | Normalization, opcode/n-gram/CFG baselines, exact search, comparison UI. | Cross-optimization examples retrieve known corresponding functions.
+Phase 4 — Research dataset | Build scripts, source provenance, compiler matrix, grouped splits, leakage tests. | Versioned dataset manifest and split audit.
+Phase 5 — Learned embeddings | PyTorch encoder, contrastive training, checkpoints, FAISS, evaluation. | Measured Recall@k/MRR vs baseline on frozen test split.
+Phase 6 — Reliability and polish | Cancellation, caching, export, deletion, accessibility, profiling, docs. | All acceptance and security tests pass.
+Phase 7 — Optional expansion | PE support, Ghidra integration, graph encoder, cross-project robustness. | Each feature independently benchmarked and documented.
+
+
+## 15. Definition of done
+
+Local setup succeeds from a clean checkout without paid AI API keys.
+A real, authorized compiled binary is statically parsed; function lists, instructions, and CFGs come from actual analysis.
+Two different compiler/optimization builds can be compared, and evidence-backed top-k results are shown.
+A reproducible labeled dataset, leakage-safe split, and baseline evaluation exist.
+At least one trainable ML model has a documented training run and is compared fairly to baselines; if it fails to outperform, report that honestly.
+Security tests prove no intentional binary execution, enforce resource limits, and validate unsafe input handling.
+CI tests, documentation, model card, dataset card, architecture diagram, known limitations, and demo instructions are complete.
+
+## 16. Agent execution protocol
+
+First produce a repository tree, short architecture plan, explicit assumptions, and an ordered task list.
+Implement the smallest complete vertical slice: import fixture → disassemble → store → view in UI.
+Write and execute tests at each milestone; preserve failing logs and describe unresolved failures.
+Use real data and deterministic demo fixtures. Never fabricate evaluation metrics, model accuracy, runtime benchmarks, or UI screenshots.
+After each milestone update AGENTS.md, docs/ARCHITECTURE.md, docs/DECISIONS.md, docs/PROGRESS.md, docs/TESTING.md, docs/BENCHMARKS.md, docs/KNOWN_ISSUES.md.
+Do not expand scope to exploit development, live malware execution, or unsupported architectures without explicit authorization.
+Final response must include implemented features, exact commands run, tests passed/failed, benchmark environment, known limitations, and next steps.
+
+## 17. Suggested acceptance demo
+
+Compile a small permissively licensed C program twice (e.g., GCC -O0 and Clang -O2), preserving source-level labels for evaluation. Import both ELF binaries, open a function, view its instructions and CFG, query nearest functions in the second binary, inspect top-k evidence, then open a benchmark report comparing the neural encoder against opcode and n-gram baselines. The demo must show actual results from running code, not mock statistics.
+
+## 18. Risks and mitigation
+
+Risk | Mitigation
+Incorrect function boundaries | Use symbols/debug information for controlled fixtures; label heuristics and confidence.
+Data leakage inflates results | Group splits by source lineage/project; audit before training.
+Model learns compiler fingerprints | Cross-compiler held-out tests and subgroup analysis.
+ML underperforms simple baselines | Keep strong baselines; report negative findings.
+Untrusted parser crash or exploit | Sandbox static workers; time/memory limits; patch dependencies.
+Slow training on student laptop | Small dataset/model, CPU mode, optional GPU, checkpointing.
+Public demo incurs compute costs | Static pre-analyzed examples; local-first processing.
+
+
+## 19. Start building RECON
+
+Begin with Phase 0, then implement the Phase 1 vertical slice. Preserve the requirement IDs and map each to tests. Treat this document as a working engineering specification: update it only through recorded design decisions and do not quietly omit acceptance criteria.
+
+## 20. Reverse Engineer Anything (REA) integration — mandatory extension
+
+This section extends, and does not replace, Sections 0–19. All original requirements, use cases, ML methodology, security constraints, and acceptance criteria remain applicable. REA is an optional analysis adapter and agent-investigation aid; RECON remains an independent binary function similarity ML product.
+
+## 20.1 Verified upstream and scope
+
+Official upstream: https://github.com/morluto/rea ; documentation: https://rea.tools ; npm package: rea-agents. Verify current upstream release, license, and provider compatibility before implementation. Do not install from lookalike repositories or assume forks are official.
+REA provides MCP/CLI-driven investigation and evidence for supported binary and application formats. Native disassembly/decompilation relies on a configured provider such as Ghidra, Hopper, or IDA; REA does not itself supply commercial tool licenses.
+Default to free Ghidra for native analysis. Capstone/LIEF remain available for lightweight parsing and fallback. Keep the RECON embedding model, dataset builder, FAISS retrieval, and evaluation suite independently implemented.
+REA may be used by the coding agent during RECON development and exposed as an opt-in, local analysis provider at runtime. The latter requires an explicit adapter, capability discovery, evidence normalization, and user approval for potentially stateful operations.
+
+## 20.2 Architecture and integration contract
+
+Define AnalysisProvider interface: capabilities(), healthcheck(), inspect_binary(), list_functions(), inspect_function(), get_call_references(), get_evidence(). Keep structured typed outputs and provenance.
+Implement NativeGhidraProvider and REAProvider adapters; route through AnalysisOrchestrator with configurable provider priority, timeout, cancellation, and fallback. REA failure must never block core RECON analysis.
+REAProvider must use the supported MCP or CLI interface documented by the pinned REA version; never invent tool names, output schemas, or capabilities. Run setup only with user approval; record versions and configuration in docs/REA_INTEGRATION.md.
+Normalize provider output into RECON FunctionEvidence: binary_id, function_id, provider, provider_version, instruction_range, assembly, pseudocode (optional), symbols, references, source_artifact_hash, evidence_links, limitations, collected_at.
+Keep REA-derived pseudocode and observations distinct from ML predictions. Display similarity scores as similarity metrics, not certainty or proof of behavior. Never treat an agent explanation as ground truth.
+REA-assisted AI narrative explanations are optional and disabled by default. The standard RECON analysis path must run without paid API keys or an external model provider.
+Only process binaries users own or are authorized to analyze. Default to static inspection. No execution of untrusted uploads, bypass of access controls, DRM, anti-cheat, or licensing checks.
+
+## 20.3 Additional functional requirements
+
+FR-041 — REA provider registration: RECON shall expose REA as an optional provider with explicit enable/disable configuration.
+FR-042 — Capability discovery: RECON shall report installed REA version, configured native provider, and available inspection capabilities.
+FR-043 — REA function evidence: For supported targets, RECON shall request and persist evidence-backed function inspection results through the REA adapter.
+FR-044 — Provider fallback: When REA is absent or fails, RECON shall continue core static analysis using the existing pipeline.
+FR-045 — Evidence provenance: Every REA-derived field shall retain tool identity, version, source address/range, and evidence limitations when available.
+FR-046 — Assisted investigation: Users may request an opt-in, evidence-based explanation of a selected function; the interface shall disclose any configured external AI provider.
+FR-047 — Function matching independence: ML embedding training and similarity retrieval shall work without REA and shall not depend on generated prose.
+FR-048 — Consent and controls: Users shall approve provider installation/configuration and any operation that executes or modifies a target.
+FR-049 — REA report export: Reports shall distinguish disassembly facts, REA evidence, model similarity outputs, and human/agent hypotheses.
+FR-050 — Integration diagnostics: Users shall see actionable errors for missing Node.js, missing REA, incompatible version, missing Ghidra, and provider timeouts.
+
+## 20.4 Additional non-functional requirements
+
+NFR-026 — Local-first: Basic RECON analysis and ML shall run without any cloud inference API.
+NFR-027 — Isolation: REA processes shall run with least privileges, resource limits, and no unapproved target execution.
+NFR-028 — Determinism: Capture upstream versions and evidence artifacts so investigations can be reproduced.
+NFR-029 — Fault tolerance: REA errors and restarts shall not corrupt stored binaries, embeddings, or training datasets.
+NFR-030 — Security: Never pass arbitrary untrusted filenames into shell commands; use argument arrays, validation, and sandboxing.
+NFR-031 — Privacy: Explain that local REA processing may still send derived evidence to an external AI agent provider if enabled.
+NFR-032 — Portability: Unsupported host/platform/provider combinations shall fail with clear capability messaging, not silent partial claims.
+NFR-033 — Latency: Set configurable provider deadlines and return partial evidence with explicit status when supported.
+
+## 20.5 Additional detailed use cases
+
+
+## UC-13 — Configure REA provider
+
+Actor: Analyst / Administrator
+Preconditions: REA integration is available and user has authorized configuration
+Main flow: Open integrations; check prerequisites; select Ghidra; run supported setup with approval; verify health; save configuration
+Postconditions: REA is available for supported targets
+Exception flow: Missing Node, REA, or Ghidra results in guided diagnostics; no core features disabled.
+
+## UC-14 — Investigate selected function with REA
+
+Actor: Analyst
+Preconditions: Binary is statically imported and REA capabilities are healthy
+Main flow: Select function; request REA investigation; adapter collects assembly/pseudocode/references; normalize evidence; show source addresses and limitations; save report
+Postconditions: Evidence-backed inspection visible next to RECON ML similarity matches
+Exception flow: Provider timeout or unsupported binary returns clear error and offers standard analysis.
+
+## UC-15 — Compare REA evidence with ML matches
+
+Actor: Researcher
+Preconditions: At least one function match exists and REA evidence is available
+Main flow: Open match; inspect embeddings and similarity; open REA evidence for both functions; review differences; mark findings as confirmed/uncertain with rationale
+Postconditions: Researcher can distinguish ML hypothesis from supporting static evidence
+Exception flow: Missing evidence does not invalidate similarity result; report says evidence unavailable.
+
+## UC-16 — Disable REA and continue
+
+Actor: Analyst
+Preconditions: REA integration is configured
+Main flow: Disable REA; rerun analysis; compare fallback outputs; inspect audit log
+Postconditions: Core RECON workflow continues without REA or paid AI
+Exception flow: Any dependent optional investigation UI is marked unavailable, not broken.
+
+## 20.6 User stories and acceptance tests
+
+As an analyst, I can enable REA without replacing the built-in pipeline, so my existing projects still work. Acceptance: disable REA and confirm all baseline binary import and similarity tests pass.
+As a researcher, I can inspect REA evidence for a selected function, so I can validate ML similarity results. Acceptance: evidence includes provider identity, addresses, and limitations; missing pseudocode is explicitly indicated.
+As a student, I can use RECON without API keys, so the project remains free to run locally. Acceptance: all core tests pass with no external model credentials.
+As an administrator, I can see dependency diagnostics, so I can fix a missing Ghidra/Node/REA installation. Acceptance: health checks report exact missing dependency and do not crash the service.
+
+## 20.7 Traceability and tests
+
+TC-016: REA adapter health/capability checks -> FR-041, FR-042, FR-050; NFR-032.
+TC-017: Evidence normalization/provenance fixture tests -> FR-043, FR-045, FR-049; NFR-028.
+TC-018: Missing REA / timeout / unsupported binary fallback tests -> FR-044, FR-047; NFR-029, NFR-033.
+TC-019: No API-key, offline core-workflow integration test -> FR-047; NFR-026, NFR-031.
+TC-020: Permission/sandbox tests using harmless synthetic binaries -> FR-048; NFR-027, NFR-030.
+TC-021: End-to-end REA-backed function investigation on a small authorized sample binary -> UC-14, UC-15.
+
+## 20.8 Updated autonomous coding-agent instruction
+
+MANDATORY: Investigate official REA upstream and current documentation before coding. Integrate REA as an OPTIONAL, version-pinned, capability-detected MCP/CLI analysis provider for RECON, not as a substitute for RECON’s independently implemented ML model. Implement provider abstraction, local Ghidra path, evidence provenance, graceful fallback, diagnostics, permission gates, and reproducible integration tests. Do not invent REA commands or promise supported behavior without checking documentation. Preserve the full original RECON SRS and existing FR-001–FR-040, NFR-001–NFR-025, UC-01–UC-12, and tests. Document exact installation steps and provider limitations. Prioritize static, authorized analysis. Core functionality must remain free of paid AI APIs.
+
+## 20.9 Delivery order and definition of done extension
+
+Phase A: Read upstream REA docs, record supported versions and native providers; document license and threat model.
+Phase B: Implement AnalysisProvider interface and baseline provider regression tests.
+Phase C: Add REAProvider with mocked MCP/CLI fixtures, capability detection, and evidence normalization.
+Phase D: Run a small end-to-end integration using a harmless self-compiled sample binary and Ghidra; benchmark and document limitations.
+Acceptance: RECON works with REA enabled, disabled, or missing; core ML similarity remains reproducible; evidence is attributable; no paid API key is required for baseline features.
+
+## 21. Final product and machine learning implementation directive
+
+RECON is a local-first static binary analysis and machine-learning function-similarity application. Its primary demonstration is matching source-corresponding functions between differently compiled builds or software versions. The coding agent must deliver working, measured training and inference rather than mocked predictions. REA is an optional evidence provider, not the ML engine.
+
+## 21.1 Mandatory end-to-end ML workflow
+
+1. Acquire source: Select permissively licensed C/C++ projects; pin revisions, license metadata and provenance. Include multiple independent projects and test programs.
+2. Compile reproducibly: Build source using pinned GCC and Clang versions, x86-64 initially, optimization O0/O1/O2/O3 where supported; retain build logs, symbols and source mapping only for ground truth.
+3. Extract functions: Use Ghidra/Capstone/LIEF and a stable extraction schema. Record function boundaries, instruction tokens, CFG features, compiler settings and extraction confidence.
+4. Build pairs and splits: Match binary functions to verified source identities; reject ambiguous mappings, inlined or merged functions where uncertain. Split by source project before pair generation to avoid leakage.
+5. Train baselines: Implement token n-gram TF-IDF, normalized opcode histogram and structural-feature similarity as reproducible baselines.
+6. Train encoder: Implement compact shared-weight Siamese encoder in PyTorch; use normalized embeddings, contrastive/InfoNCE loss, documented negatives, validation-based checkpoints and early stopping.
+7. Evaluate: Benchmark held-out projects and cross-compiler/optimization subsets; measure Recall@1, Recall@5, MRR, precision of accepted matches, false matches, latency and memory.
+8. Package and serve: Save model weights, vocabulary, normalization spec, architecture config, provenance and version; load once for inference and index candidate functions in FAISS.
+9. Integrate: Expose asynchronous comparisons in FastAPI, persist ranked matches, show evidence in React, and permit REA-assisted investigation without affecting the matching scores.
+10. Reproduce: Provide one-command demo and separate reproducible train/evaluate commands, artifact hashes and honest hardware/runtime records.
+
+## 21.2 Training and evaluation safeguards
+
+Never train on or select hyperparameters using the final held-out test projects. Deduplicate near-identical source code across splits.
+Treat compiler optimizations, inlining, link-time optimization, stripped symbols, architecture differences and function-boundary errors as explicit threats to validity.
+Only report real measured results with dataset size, class balance, compiler versions, seed, hardware and run duration. Never invent accuracy, benchmarks, or a trained checkpoint.
+Similarity is a ranking signal, not a calibrated probability or proof of semantic equivalence. Provide unknown/no-match behavior.
+Train on CPU by default with small dataset/model presets; GPU is optional and never mandatory for core operation.
+If training cannot run in the execution environment, deliver verified scripts and baselines, mark neural weights as unavailable, and keep the application functional.
+
+## 22. ML-specific functional requirements
+
+ID | Requirement / verifiable behavior
+FR-051 | Generate a versioned dataset manifest from pinned source projects and toolchains.
+FR-052 | Compile each eligible source project using reproducible compiler/optimization matrix.
+FR-053 | Extract and serialize instruction sequences and CFG statistics per function.
+FR-054 | Associate functions with verified source identities and reject ambiguous labels.
+FR-055 | Split train/validation/test by project before constructing function pairs.
+FR-056 | Build and evaluate non-neural similarity baselines.
+FR-057 | Train a shared-weight neural function encoder using a documented contrastive loss.
+FR-058 | Resume interrupted training from compatible checkpoints.
+FR-059 | Record dataset, config, seed, hardware, loss history and checkpoint provenance.
+FR-060 | Calculate Recall@1, Recall@5, MRR, false-match metrics, inference latency and memory.
+FR-061 | Export and import versioned model artifacts with integrity checks.
+FR-062 | Load a trained model for CPU inference without an external AI API.
+FR-063 | Index candidate embeddings and retrieve ranked corresponding functions.
+FR-064 | Show model version, similarity score, matched assembly and evidence per result.
+FR-065 | Provide an unknown/no-match state and adjustable ranking threshold.
+FR-066 | Permit baseline-only inference when neural weights are unavailable.
+FR-067 | Compare neural and baseline performance in a reproducible experiment report.
+FR-068 | Expose training and evaluation as optional Research Mode; Analysis Mode must not require retraining.
+FR-069 | Support user-requested comparison of two versions of a compiled application.
+FR-070 | Use REA only as optional analysis evidence and preserve native analysis fallback.
+
+
+## 23. ML-specific non-functional requirements
+
+ID | Quality constraint
+NFR-034 | Core analysis and baseline inference run offline without paid APIs.
+NFR-035 | Default training preset is feasible on a consumer CPU; document actual measured runtime.
+NFR-036 | All experiments store deterministic seeds where feasible and record nondeterministic operations.
+NFR-037 | Dataset and artifact licenses and provenance are documented.
+NFR-038 | No untrusted executable is executed during ordinary static analysis.
+NFR-039 | Training/test separation is enforced and validated automatically.
+NFR-040 | Invalid or incompatible checkpoints fail safely with actionable diagnostics.
+NFR-041 | All model outputs are labeled as similarity rankings, not factual guarantees.
+NFR-042 | Inference resource use is bounded by configurable file, function and memory limits.
+NFR-043 | Models, tokenizer, normalization and extraction schema are version-compatible.
+NFR-044 | No false claims of trained models, measured accuracy or successful commands.
+NFR-045 | Research mode and REA integrations cannot block baseline Analysis Mode.
+
+
+## 24. Additional detailed use cases
+
+
+## UC-17 — Train RECON similarity model
+
+Primary actor: Researcher
+Preconditions: Labeled, licensed dataset and compiler toolchain available
+Main success flow: Researcher chooses preset → dataset is validated → baseline is computed → Siamese model trains → validation selects checkpoint → model and report saved
+Alternative/exception flow: Invalid labels, out-of-memory, interruption, or missing dependencies produce explicit error; checkpoint resumes when compatible.
+Postcondition: Results and audit metadata are saved; errors are explicit and no metrics are fabricated.
+
+## UC-18 — Compare software versions
+
+Primary actor: Analyst
+Preconditions: Two supported binaries and at least a baseline similarity method available
+Main success flow: Analyst uploads/imports two versions → static extraction completes → embeddings or baseline features computed → candidates ranked → report displays matched/changed/unmatched functions
+Alternative/exception flow: Unsupported format, missing functions, low-confidence results or worker failure are explained.
+Postcondition: Results and audit metadata are saved; errors are explicit and no metrics are fabricated.
+
+## UC-19 — Evaluate against unseen projects
+
+Primary actor: Researcher
+Preconditions: Held-out project split and candidate model available
+Main success flow: Researcher launches evaluation → system verifies split isolation → computes ranking metrics and latency → produces comparison report
+Alternative/exception flow: Split contamination or incompatible model fails evaluation without reporting misleading metrics.
+Postcondition: Results and audit metadata are saved; errors are explicit and no metrics are fabricated.
+
+## UC-20 — Use offline pretrained model
+
+Primary actor: Analyst
+Preconditions: Compatible verified weights or baseline available
+Main success flow: Analyst installs RECON → model loads locally → binary comparison runs without API key → evidence appears in UI
+Alternative/exception flow: If weights missing, baseline-only mode remains available.
+Postcondition: Results and audit metadata are saved; errors are explicit and no metrics are fabricated.
+
+## UC-21 — Investigate uncertain match using REA
+
+Primary actor: Analyst
+Preconditions: Candidate match and optional configured REA available
+Main success flow: Analyst selects match → REA retrieves supported pseudocode, xrefs or CFG evidence → user reviews beside ML ranking
+Alternative/exception flow: REA absent/unavailable: native disassembly remains usable; no hallucinated tool output.
+Postcondition: Results and audit metadata are saved; errors are explicit and no metrics are fabricated.
+
+## UC-22 — Export reproducible experiment
+
+Primary actor: Researcher
+Preconditions: Completed experiment and provenance records available
+Main success flow: Researcher exports configs, splits, metrics, environment and model hashes → another machine can rerun documented commands
+Alternative/exception flow: Unavailable proprietary input or non-reproducible dependency is disclosed.
+Postcondition: Results and audit metadata are saved; errors are explicit and no metrics are fabricated.
+
+## 25. Acceptance tests and traceability extension
+
+Test | Requirement linkage | Pass criteria
+AT-016 | FR-051–055; NFR-039 | Build fixtures across GCC/Clang; confirm project-level split isolation and verified function identities.
+AT-017 | FR-056–057 | Run baseline and at least one complete CPU neural training step; verify nonzero gradients and decreasing synthetic training loss.
+AT-018 | FR-058–059 | Interrupt and resume checkpoint; compare metadata and ensure compatible restoration.
+AT-019 | FR-060; NFR-041 | Evaluate fixed ground-truth retrieval fixture; independently validate Recall@k and MRR.
+AT-020 | FR-061–062; NFR-040 | Save/reload model and verify deterministic inference tolerance; reject incompatible artifact.
+AT-021 | FR-063–065 | Compare two real compiled programs and show rankings, unknown state and supporting assembly.
+AT-022 | FR-066; NFR-045 | Remove neural weights and disable REA; verify baseline-only comparison works.
+AT-023 | FR-067–068 | Export reproducible experiment report and verify config, split and metric provenance.
+AT-024 | FR-069–070 | Compare two versions, inspect with REA if available, and fall back gracefully otherwise.
+AT-025 | NFR-034,038,042 | Verify offline operation, no executable launch, and resource bounds for malformed inputs.
+
+
+## 26. Updated implementation milestones
+
+Phase A — Native static analysis: executable parsing, disassembly, function extraction, safe worker limits, offline fixture and UI.
+Phase B — Ground-truth data: compiler matrix, provenance, function mapping, project-disjoint splits, schema and data-quality checks.
+Phase C — Baselines: token/CFG feature extraction, nearest-neighbor retrieval and transparent evaluation.
+Phase D — Neural ML: Siamese PyTorch model, loss, training CLI, CPU preset, checkpoints, tests and held-out evaluation.
+Phase E — Product integration: FastAPI inference and jobs, FAISS indexing, side-by-side binary comparison, uncertainty display.
+Phase F — REA evidence integration: optional MCP provider, verified capabilities, timeouts, audit trail and fallback.
+Phase G — Delivery: offline demo, pretrained model if genuinely trained, reproduction instructions, test evidence, benchmarks, security review and final report.
+
+## 27. Final coding-agent execution contract
+
+Act as an autonomous but evidence-driven senior team of software engineers, reverse engineers and ML engineers. Implement RECON as a working local-first application, not a concept or mockup. Read the entire specification including all original sections and REA extensions. Maintain AGENTS.md, docs/ARCHITECTURE.md, docs/DECISIONS.md, docs/ML_DATASET.md, docs/ML_EVALUATION.md, docs/PROGRESS.md, and docs/KNOWN_ISSUES.md. Build incrementally; run tests after each phase; disclose every command that could not run. Never claim the model is trained without actual saved weights and verifiable training logs. Do not assume REA tool names, license, installation or MCP capabilities: inspect and pin the upstream version before implementing its adapter. Prefer safe static analysis, no execution of untrusted binaries. Implement core baseline comparison before advanced ML. Keep all services and models runnable locally without paid API keys. Stop only when the documented definition of done is verified or blockers are reported with exact reproduction steps.
+Begin by auditing the repository/environment, writing a phase plan, and implementing the smallest working vertical slice: import two safe fixture binaries → extract functions → baseline rank matches → display side-by-side results. Then implement reproducible dataset generation and neural training, followed by REA integration and hardening.
