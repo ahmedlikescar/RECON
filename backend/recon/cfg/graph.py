@@ -39,8 +39,11 @@ def build_cfg(instructions: list[Instruction]) -> CFG:
                 )
             else:
                 unresolved.append(last.address)
-        if (last.flow in {"next", "call", "conditional"} and pos + 1 < len(blocks)
-                and last.address + last.size == blocks[pos + 1].start_address):
+        if (
+            last.flow in {"next", "call", "conditional"}
+            and pos + 1 < len(blocks)
+            and last.address + last.size == blocks[pos + 1].start_address
+        ):
             edges.append(Edge(source=block.id, target=blocks[pos + 1].id, kind="fallthrough"))
     graph: nx.DiGraph[str] = nx.DiGraph()
     graph.add_nodes_from(b.id for b in blocks)

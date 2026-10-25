@@ -1,0 +1,78 @@
+{
+  "schema_version": "sources-1",
+  "description": "Small, project-disjoint research pilot. Not a representative production benchmark.",
+  "projects": [
+    {
+      "name": "vec",
+      "repository": "rxi/vec",
+      "commit": "20e84224ceb29a8f76d2b9d0ccfc547258a14ec5",
+      "license": "MIT",
+      "split": "train",
+      "source": "src/vec.c",
+      "files": [
+        "src/vec.c",
+        "src/vec.h",
+        "LICENSE"
+      ],
+      "file_sha256": {
+        "src/vec.c": "959f016ae5ca60ac8fdce6301123ac7c49fb507f697b26d9688df3627ba061a7",
+        "src/vec.h": "a0cb4b54235a208385d916399e624dc38ceb6c9b963be2ee4c11527d9ded1e91",
+        "LICENSE": "9c89bfbdfc147da4d65c695fe1d83dc6e14ca92e4f033e5096c78769a9e92dac"
+      }
+    },
+    {
+      "name": "map",
+      "repository": "rxi/map",
+      "commit": "d6c355fcfb35e5bf71905c0c28ccee34694b4a95",
+      "license": "MIT",
+      "split": "train",
+      "source": "src/map.c",
+      "files": [
+        "src/map.c",
+        "src/map.h",
+        "LICENSE"
+      ],
+      "file_sha256": {
+        "src/map.c": "b1b4ab54c68d8c24775a1d2c1bafc99afd5704803cb5a3c8cdeaa3130e01a2a8",
+        "src/map.h": "c7e70b858fa070f1c49313f32a05ab719accafd30acf496d8bbeb21b3efc61b5",
+        "LICENSE": "9c89bfbdfc147da4d65c695fe1d83dc6e14ca92e4f033e5096c78769a9e92dac"
+      }
+    },
+    {
+      "name": "aes",
+      "repository": "kokke/tiny-AES-c",
+      "commit": "23856752fbd139da0b8ca6e471a13d5bcc99a08d",
+      "license": "Unlicense",
+      "split": "validation",
+      "source": "aes.c",
+      "files": [
+        "aes.c",
+        "aes.h",
+        "unlicense.txt"
+      ],
+      "file_sha256": {
+        "aes.c": "f7f78b44654efd3542b6886923dd05194286807ebcfeb078ea05d21fe901ee9e",
+        "aes.h": "9f74a4de3bd11621ff6e8fb9b352b060f699e6c1c67f81a22d104aacad61a23b",
+        "unlicense.txt": "7e12e5df4bae12cb21581ba157ced20e1986a0508dd10d0e8a4ab9a4cf94e85c"
+      }
+    },
+    {
+      "name": "ini",
+      "repository": "rxi/ini",
+      "commit": "13a254c9e38def8924a83badfea5eda5a01b9295",
+      "license": "MIT",
+      "split": "test",
+      "source": "src/ini.c",
+      "files": [
+        "src/ini.c",
+        "src/ini.h",
+        "LICENSE"
+      ],
+      "file_sha256": {
+        "src/ini.c": "a6ea2981ee05476937f53aa9ead534efd26f4765811562e0f0df541468a306dd",
+        "src/ini.h": "def7a74d48fabf7931a7689714417e451ea1a410eddd0730574666c91a7e9ef3",
+        "LICENSE": "504727cc20e477470296b326f3dd57c3ee2ef9dddb42d334c62e85a78c2c36ca"
+      }
+    }
+  ]
+}

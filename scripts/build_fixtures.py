@@ -44,6 +44,7 @@ def build(output: Path) -> dict:
             "-static",
             "-Wl,-e,entry",
             "-Wl,--build-id=none",
+            f"-ffile-prefix-map={ROOT}=/recon-source",
         ]
         result = subprocess.run(
             [*cc, *flags, str(source), "-o", str(target)], capture_output=True, text=True

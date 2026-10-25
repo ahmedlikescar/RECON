@@ -1,0 +1,50 @@
+{
+  "source": "tests/fixtures/demo.c",
+  "license": "MIT",
+  "source_sha256": "c28d36a23a2cdc1b1121fe8eaf4e916dd5e5556f853f694c9b45684bded1e586",
+  "compiler_version": "clang version 20.1.2 (https://github.com/ziglang/zig-bootstrap 7ef74e656cf8ddbd6bf891a8475892aa1afa6891)\nTarget: x86_64-unknown-linux-musl\nThread model: posix\nInstalledDir: /Users/ahmed./Documents/ChatGPT/viscon - AI Video summarizer/.venv/lib/python3.12/site-packages/ziglang",
+  "builds": [
+    {
+      "path": "demo-O0.elf",
+      "flags": [
+        "-O0",
+        "-g",
+        "-fno-inline",
+        "-fno-builtin",
+        "-fno-stack-protector",
+        "-fno-sanitize=all",
+        "-ffreestanding",
+        "-nostdlib",
+        "-static",
+        "-Wl,-e,entry",
+        "-Wl,--build-id=none",
+        "-ffile-prefix-map=/Users/ahmed./Documents/ChatGPT/viscon - AI Video summarizer=/recon-source"
+      ],
+      "architecture": "x86-64",
+      "optimization": "O0",
+      "sha256": "c1dbe08af9b2a7d01deba3f6c562dfab7a2f5fb67bc10775a3e9d91bc1c423a5",
+      "executed": false
+    },
+    {
+      "path": "demo-O2.elf",
+      "flags": [
+        "-O2",
+        "-g",
+        "-fno-inline",
+        "-fno-builtin",
+        "-fno-stack-protector",
+        "-fno-sanitize=all",
+        "-ffreestanding",
+        "-nostdlib",
+        "-static",
+        "-Wl,-e,entry",
+        "-Wl,--build-id=none",
+        "-ffile-prefix-map=/Users/ahmed./Documents/ChatGPT/viscon - AI Video summarizer=/recon-source"
+      ],
+      "architecture": "x86-64",
+      "optimization": "O2",
+      "sha256": "13cacdc9da4c75caa043fa7a9eda665a4deb39795f5ead78690809dd9bdf0ad3",
+      "executed": false
+    }
+  ]
+}

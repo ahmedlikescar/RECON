@@ -18,3 +18,26 @@ and cancellation. See `docs/TESTING.md` for observed results.
 
 API/UI and research integration are still being built. This checkpoint is an
 engine foundation, not a finished application. Follow `docs/PLAN.md` in order.
+
+## Checkpoint 2
+
+The working app now has the FastAPI service, Alembic schema, a persistent bounded
+job queue, the React workspace/explorer/comparison UI, genuine side-by-side
+assembly/CFG evidence, baseline indexes, unknown threshold, report export, cache
+checks, cancellation and deletion. Core analysis works without weights or REA.
+
+Added pinned-source dataset compilation, DWARF-verified source labels,
+project-disjoint splits, duplicate/near-duplicate checks, a compact CPU Siamese
+encoder, safe model/optimizer checkpoints and held-out evaluation. A real pilot
+model was trained locally; it does not outperform the n-gram baseline on this
+small test project. Research and model cards will document the practical limits.
+
+Verified: 35 backend tests, 3 frontend unit tests, 3 Chromium end-to-end tests,
+frontend type check/production build, backend Ruff and mypy. Browser tests load
+real demo builds, inspect CFGs, compare, export, reject invalid input, and inspect
+the narrow layout. Screenshot artifacts come from those browser runs.
+
+The optional REA 6.8.0 CLI adapter uses inspected upstream contracts and has
+normalization/fallback tests. No actual REA/Ghidra installation or end-to-end
+provider investigation has run. Remaining hardening and traceability are tracked
+in `KNOWN_ISSUES.md` and the final delivery notes.

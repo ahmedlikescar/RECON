@@ -53,7 +53,12 @@ def analyze_file(path: Path, settings: Settings) -> Analysis:
                 "FUNCTION_LIMIT",
                 f"A symbol exceeds the {settings.max_function_bytes}-byte function budget.",
             )
-        entry = (text(symbol.name) or f"sub_{symbol.value:x}", int(symbol.size), "symbol_table", 1.0)
+        entry = (
+            text(symbol.name) or f"sub_{symbol.value:x}",
+            int(symbol.size),
+            "symbol_table",
+            1.0,
+        )
         previous = entries.get(int(symbol.value))
         if previous is None or previous[1] < entry[1]:
             entries[int(symbol.value)] = entry
@@ -163,5 +168,8 @@ def analyze_file(path: Path, settings: Settings) -> Analysis:
             "Symbol tables and heuristic boundaries may be incomplete or incorrect. Exception edges and indirect jump tables are not recovered.",
         ],
         duration_seconds=time.perf_counter() - started,
-        tool_versions={"lief": getattr(lief, "__version__", "unknown"), "capstone": capstone.__version__},
+        tool_versions={
+            "lief": getattr(lief, "__version__", "unknown"),
+            "capstone": capstone.__version__,
+        },
     )

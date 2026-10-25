@@ -1,0 +1,8 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {"label": "RECON: run local app", "type": "process", "command": "${workspaceFolder}/.venv/bin/python", "args": ["-m", "recon.cli", "serve"], "isBackground": true, "problemMatcher": []},
+    {"label": "RECON: build demo binaries", "type": "process", "command": "${workspaceFolder}/.venv/bin/python", "args": ["scripts/build_fixtures.py"], "problemMatcher": []},
+    {"label": "RECON: backend tests", "type": "process", "command": "${workspaceFolder}/.venv/bin/python", "args": ["-m", "pytest", "-q"], "group": "test", "problemMatcher": []}
+  ]
+}
