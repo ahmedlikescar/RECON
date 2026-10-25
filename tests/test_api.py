@@ -44,6 +44,11 @@ def test_end_to_end_real_comparison_export_and_delete(fixtures, tmp_path):
         detail = client.get(f"/api/v1/functions/{query['id']}").json()
         assert detail["instructions"][0]["address"] == query["address"]
         assert client.get(f"/api/v1/functions/{query['id']}/cfg").json()["blocks"]
+        analysis_report = client.get(f"/api/v1/reports/{a}/export").json()
+        assert analysis_report["report_kind"] == "analysis"
+        assert analysis_report["functions"][0]["instructions"]
+        analysis_csv = client.get(f"/api/v1/reports/{a}/export?format=csv")
+        assert analysis_csv.status_code == 200 and "normalized_token" in analysis_csv.text
         response = client.post(
             "/api/v1/comparisons",
             json={
@@ -70,6 +75,10 @@ def test_end_to_end_real_comparison_export_and_delete(fixtures, tmp_path):
             assert "similarity" in response.text
         # Repeated comparisons reuse the persisted index; they do not retrain anything.
         assert (tmp_path / f"indexes/{b}.json").exists()
+        reanalysis = client.post(f"/api/v1/binaries/{a}/reanalyze")
+        assert reanalysis.status_code == 202, reanalysis.text
+        assert wait_job(client, reanalysis.json()["id"])["state"] == "completed"
+        assert client.get(f"/api/v1/comparisons/{comparison_id}").status_code == 404
         assert client.delete(f"/api/v1/binaries/{a}").status_code == 204
         assert client.get(f"/api/v1/comparisons/{comparison_id}").status_code == 404
         assert client.get(f"/api/v1/functions/{query['id']}").status_code == 404
@@ -151,6 +160,29 @@ def test_missing_weights_and_rea_do_not_break_native_analysis(fixtures, tmp_path
         )
         assert response.status_code == 409
         assert response.json()["error"]["code"] == "MODEL_UNAVAILABLE"
+        assert list((tmp_path / "evidence").glob("*.json"))
+        assert client.delete(f"/api/v1/binaries/{binary_id}").status_code == 204
+        assert list((tmp_path / "evidence").glob("*.json")) == []
+
+
+def test_streaming_upload_budget_without_content_length(tmp_path):
+    settings = Settings(data_dir=tmp_path, max_upload_bytes=1024)
+    with TestClient(create_app(settings)) as client:
+        boundary = "recon-test-boundary"
+
+        def chunks():
+            yield f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="big.elf"\r\nContent-Type: application/octet-stream\r\n\r\n'.encode()
+            for _ in range(100):
+                yield b"x" * 1024
+            yield f"\r\n--{boundary}--\r\n".encode()
+
+        response = client.post(
+            "/api/v1/binaries",
+            content=chunks(),
+            headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+        )
+        assert response.status_code == 413, response.text
+        assert response.json()["error"]["code"] == "FILE_TOO_LARGE"
 
 
 def test_interrupted_jobs_persist_as_failed_and_queued_jobs_can_cancel(tmp_path):

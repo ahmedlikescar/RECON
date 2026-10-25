@@ -1,81 +1,37 @@
-# recon, reverse engineering tool
+# RECON
 
-we're building a local binary analysis and function similarity tool.
+RECON is a university project we're building to compare compiled programs and find similar functions. The idea is to see which parts of two programs might match, even when they were built differently.
 
-RECON inspects compiled programs without running them, compares functions
-across different builds, and show the instructions and control flow behind each match.
+It runs on your own computer and looks at program files without running them. You don't need a paid AI service to use it.
 
-the core app runs locally without paid AI APIs. the first working version includes
-an explorer, side-by-side comparisons, a research pipeline, and an optional REA adapter.
+![RECON workspace](docs/images/workspace.png)
 
-![the RECON workspace](docs/images/workspace.png)
+## What works so far
 
-## run locally
+- Import a program file and browse its functions.
+- Look at the instructions and how different parts of a function connect.
+- Compare two builds and view possible matches side by side.
+- Try the included example programs and download the results.
 
-Use Python 3.12, Node.js 22+ and pnpm 11. macOS and Linux are the development
-targets; use WSL2 on Windows. Install [uv](https://docs.astral.sh/uv/getting-started/installation/)
-and [pnpm](https://pnpm.io/installation) first if needed.
+At the moment, we support 64-bit Linux program files (ELF). Support for other formats is still planned.
 
-```sh
-uv sync
-pnpm --dir frontend install --frozen-lockfile
-pnpm --dir frontend build
-uv run python scripts/demo.py
-```
+## Where we're at
 
-Open [the local app](http://127.0.0.1:8000), then click **Load demo**. The bundled
-O0/O2 ELF files were compiled from `tests/fixtures/demo.c`; neither is executed.
-Once dependencies are installed, the demo and core analysis work offline.
+We have an early working version, with tests for importing files, comparing functions, and using the interface.
 
-For neural inference and research, install the extra dependencies instead:
+We've also trained a small machine learning model to try improving the matches. In our first small experiment, the simpler comparison methods did better, so there's still work to do there.
 
-```sh
-uv sync --extra research
-uv run python scripts/demo.py
-```
+The results are suggestions to investigate. A high score doesn't prove that two functions do exactly the same thing.
 
-The demo installer picks up the genuinely trained pilot weights in `models/pilot/`
-when PyTorch is available. Baselines work without them. The pilot is a small
-research example, and its results are not a guarantee about other binaries.
+## Try it
 
-## development in VS Code
+The [setup guide](docs/SETUP.md) has the commands to run the project. Once it's open, click **Load demo** to try the included examples.
 
-Open this repository folder. `.vscode/` contains interpreter settings and tasks
-for the local app, fixture builds, and backend tests. For frontend development:
+## What's next
 
-```sh
-uv run python scripts/demo.py --prepare-only
-uv run recon serve
-# in another terminal
-pnpm --dir frontend dev
-```
+- Test with more programs and different builds.
+- Improve the matching and check where it gets things wrong.
+- Finish testing the optional analysis tools.
+- Make the interface easier to use as the project grows.
 
-The development UI is at [localhost:5173](http://127.0.0.1:5173). Data stays under
-`.recon/`, which is ignored by Git. The API binds to loopback and exposes its typed
-contract at [the local API docs](http://127.0.0.1:8000/docs).
-
-## tests and research
-
-```sh
-uv run pytest -q
-uv run ruff check backend scripts tests
-uv run mypy backend/recon
-pnpm --dir frontend test
-pnpm --dir frontend build
-pnpm --dir frontend exec playwright install chromium
-pnpm --dir frontend test:e2e
-
-uv run --extra research recon dataset build
-uv run --extra research recon dataset audit
-uv run --extra research recon train --epochs 30 --seed 42
-uv run --extra research recon evaluate
-```
-
-Dataset building downloads pinned, licensed C sources on first use and records
-hashes, compiler versions, flags and source labels. Ordinary analysis never downloads
-anything. On this Mac, dataset builds use Zig's x86-64 Linux cross compiler;
-actual GCC/Clang cross-compiler results are not claimed.
-
-See [the plan](docs/PLAN.md), [verified progress](docs/PROGRESS.md),
-[test results](docs/TESTING.md), and [known limitations](docs/KNOWN_ISSUES.md).
-REA is optional, disabled by default, and requires a separate approved setup.
+More detailed notes are in the [docs folder](docs/), including our [progress](docs/PROGRESS.md) and [known issues](docs/KNOWN_ISSUES.md).

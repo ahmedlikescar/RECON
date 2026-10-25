@@ -6,6 +6,7 @@ import signal
 import subprocess
 import tempfile
 import time
+from contextlib import suppress
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -62,7 +63,8 @@ def bounded_command(
                     time.sleep(0.05)
             finally:
                 if process.poll() is None:
-                    os.killpg(process.pid, signal.SIGKILL)
+                    with suppress(ProcessLookupError):
+                        os.killpg(process.pid, signal.SIGKILL)
                 process.wait()
         if output.stat().st_size > 16 * 1048576:
             raise ReconError(

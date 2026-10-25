@@ -6,6 +6,7 @@ import sys
 import tempfile
 import time
 from collections.abc import Callable
+from contextlib import suppress
 from pathlib import Path
 
 from recon.config import Settings
@@ -75,7 +76,8 @@ def run_analysis(
                     time.sleep(0.05)
             finally:
                 if process.poll() is None:
-                    os.killpg(process.pid, signal.SIGKILL)
+                    with suppress(ProcessLookupError):
+                        os.killpg(process.pid, signal.SIGKILL)
                 process.wait()
         if process.returncode != 0 or not target.exists():
             raise ReconError(

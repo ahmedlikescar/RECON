@@ -1,1 +1,10 @@
-:root{color-scheme:dark;--bg:#171b1e;--panel:#1c2226;--panel2:#212a30;--border:#30383e;--text:#d9dfe2;--muted:#87969f;--accent:#e6a071}
+:root {
+  color-scheme: dark;
+  --bg: #171b1e;
+  --panel: #1c2226;
+  --panel2: #212a30;
+  --border: #30383e;
+  --text: #d9dfe2;
+  --muted: #87969f;
+  --accent: #e6a071;
+}

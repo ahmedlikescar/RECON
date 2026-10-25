@@ -8,6 +8,7 @@ from fastapi import FastAPI, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from sqlalchemy import func, select
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from recon import ANALYZER_VERSION, FEATURE_SCHEMA, __version__
@@ -25,7 +26,8 @@ from recon.api.views import (
 from recon.config import REPO_ROOT, Settings
 from recon.errors import ReconError
 from recon.schemas import CFG, ComparisonRequest, InvestigationRequest, TrainingRequest
-from recon.security.validation import inside
+from recon.security.http import BodyBudgetMiddleware
+from recon.security.validation import csv_cell, inside
 from recon.service import Service, identifier
 from recon.storage.artifacts import read_json
 from recon.storage.database import Binary, Comparison, Experiment, Function, Job, record
@@ -49,6 +51,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         service.close()
 
     app = FastAPI(title="RECON", version=__version__, lifespan=lifespan)
+    app.add_middleware(BodyBudgetMiddleware, max_bytes=settings.max_upload_bytes + 65536)
     app.add_middleware(
         TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost", "[::1]", "testserver"]
     )
@@ -96,6 +99,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def recon_error(_: Request, exc: ReconError) -> JSONResponse:
         return JSONResponse(
             {"error": {"code": exc.code, "message": exc.message}}, status_code=exc.status
+        )
+
+    @app.exception_handler(StarletteHTTPException)
+    async def http_error(_: Request, exc: StarletteHTTPException) -> JSONResponse:
+        if isinstance(exc.detail, dict) and "code" in exc.detail:
+            return JSONResponse({"error": exc.detail}, status_code=exc.status_code)
+        return JSONResponse(
+            {"error": {"code": f"HTTP_{exc.status_code}", "message": str(exc.detail)}},
+            status_code=exc.status_code,
         )
 
     @app.get("/api/v1/health")
@@ -287,15 +299,56 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         try:
             row = service.get(Comparison, resource_id)
         except ReconError:
-            row = service.get(Experiment, resource_id)
+            try:
+                row = service.get(Experiment, resource_id)
+            except ReconError:
+                row = service.get(Binary, resource_id)
         if row["status"] != "completed" or not row["artifact_path"]:
             raise ReconError("REPORT_NOT_READY", "This task has no completed report yet.", 409)
         report = read_json(inside(service.root, row["artifact_path"]), row["artifact_hash"])
+        if "filename" in row:
+            report = {
+                **service.analysis(resource_id).model_dump(),
+                "binary": BinaryView.model_validate(row).model_dump(),
+                "report_kind": "analysis",
+            }
         headers = {"Content-Disposition": f'attachment; filename="recon-{resource_id}.{format}"'}
         if format == "json":
             return JSONResponse(report, headers=headers)
         stream = io.StringIO()
         writer = csv.writer(stream)
+        if report.get("report_kind") == "analysis":
+            writer.writerow(
+                [
+                    "function",
+                    "function_address",
+                    "instruction_address",
+                    "mnemonic",
+                    "operands",
+                    "normalized_token",
+                    "source_sha256",
+                    "analyzer_version",
+                    "feature_schema",
+                    "discovery_method",
+                ]
+            )
+            for function in report["functions"]:
+                for instruction in function["instructions"]:
+                    writer.writerow(
+                        [
+                            csv_cell(function["name"]),
+                            hex(function["address"]),
+                            hex(instruction["address"]),
+                            csv_cell(instruction["mnemonic"]),
+                            csv_cell(instruction["operands"]),
+                            csv_cell(instruction["token"]),
+                            report["sha256"],
+                            report["analyzer_version"],
+                            report["feature_schema"],
+                            function["discovery_method"],
+                        ]
+                    )
+            return Response(stream.getvalue(), media_type="text/csv", headers=headers)
         writer.writerow(
             [
                 "query_function",
@@ -311,16 +364,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             ]
         )
 
-        # Avoid spreadsheet formula injection in names from untrusted symbol tables.
-        def cell(value: str) -> str:
-            return "'" + value if value.startswith(("=", "+", "-", "@", "\t", "\r")) else value
-
         for query in report.get("results", []):
             for match in query["matches"]:
                 writer.writerow(
                     [
-                        cell(query["name"]),
-                        cell(match["name"]),
+                        csv_cell(query["name"]),
+                        csv_cell(match["name"]),
                         match["rank"],
                         match["similarity_score"],
                         report["method"],

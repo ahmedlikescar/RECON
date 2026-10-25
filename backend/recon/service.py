@@ -132,20 +132,36 @@ class Service:
     def reanalyze(self, binary_id: str) -> dict[str, Any]:
         self.get(Binary, binary_id)
         with self.lock, self.sessions.begin() as db:
+            related = db.scalars(
+                select(Comparison).where(
+                    (Comparison.source_binary_id == binary_id)
+                    | (Comparison.target_binary_id == binary_id)
+                )
+            ).all()
+            related_ids = [binary_id, *[item.id for item in related]]
             if db.scalar(
                 select(Job).where(
-                    Job.resource_id == binary_id, Job.state.in_(["queued", "running"])
+                    Job.resource_id.in_(related_ids), Job.state.in_(["queued", "running"])
                 )
             ):
                 raise ReconError(
                     "JOB_ACTIVE", "This binary already has an active analysis task.", 409
                 )
             self.check_queue()
+            old_artifacts = [item.artifact_path for item in related if item.artifact_path]
+            for item in related:
+                db.delete(item)
+            db.execute(delete(Job).where(Job.resource_id.in_(related_ids)))
             job = Job(id=identifier(), kind="analysis", resource_id=binary_id)
             db.add(job)
             db.get(Binary, binary_id).status = "queued"
             db.flush()
             result = record(job)
+        for artifact in old_artifacts:
+            inside(self.root, artifact).unlink(missing_ok=True)
+        for path in (self.root / "indexes").glob(f"{binary_id}*"):
+            path.unlink(missing_ok=True)
+        self.index_cache.pop(binary_id, None)
         self.wake.set()
         return result
 
@@ -195,9 +211,9 @@ class Service:
                     "QUERY_SCOPE", "The query function must belong to the source binary."
                 )
         if request.method == "neural":
-            from recon.ml.model import load_model
+            from recon.ml.model import inference_model
 
-            load_model(self.root / "models/current")
+            inference_model(self.root / "models/current")
         with self.lock, self.sessions.begin() as db:
             self.check_queue()
             item = Comparison(
@@ -350,10 +366,18 @@ class Service:
         if request.query_function_id:
             queries = [p for p in queries if p[0] == request.query_function_id]
         if request.method == "neural":
-            from recon.ml.model import neural_rank
+            from recon.ml.model import inference_model, neural_rank
 
+            metadata = inference_model(self.root / "models/current")[2]
             result = neural_rank(
-                queries, targets, self.root / "models/current", request.top_k, request.threshold
+                queries,
+                targets,
+                self.root / "models/current",
+                request.top_k,
+                request.threshold,
+                self.root
+                / "indexes"
+                / f"{request.target_binary_id}-neural-{metadata['model_version']}.npy",
             )
         else:
             index = self.index_cache.get(request.target_binary_id)
@@ -415,6 +439,14 @@ class Service:
                     f"indexes/{binary_id}.json",
                     f"indexes/{binary_id}.sha256",
                 ]
+            )
+            paths.extend(
+                str(p.relative_to(self.root))
+                for p in (self.root / "evidence").glob(f"{binary['sha256']}-*.json")
+            )
+            paths.extend(
+                str(p.relative_to(self.root))
+                for p in (self.root / "indexes").glob(f"{binary_id}-neural*")
             )
             db.execute(delete(Job).where(Job.resource_id.in_(ids)))
             db.delete(db.get(Binary, binary_id))

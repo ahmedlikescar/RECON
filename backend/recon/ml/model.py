@@ -1,5 +1,7 @@
 import importlib.util
+import io
 import json
+from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -156,6 +158,14 @@ def model_status(path: Path) -> dict[str, Any]:
             or manifest.get("feature_schema") != FEATURE_SCHEMA
         ):
             return {"available": False, "reason": "Installed weights use an incompatible schema."}
+        if (
+            digest((path / "weights.safetensors").read_bytes()) != manifest["weights_sha256"]
+            or digest((path / "vocabulary.json").read_bytes()) != manifest["vocabulary_sha256"]
+        ):
+            return {
+                "available": False,
+                "reason": "Installed model artifacts failed their integrity checks.",
+            }
         available = importlib.util.find_spec("torch") is not None
         return {
             "available": available,
@@ -180,31 +190,77 @@ def embed(model: Any, vocab: dict[str, int], functions: list[FunctionAnalysis]) 
     return np.concatenate(outputs)
 
 
+@lru_cache(maxsize=2)
+def _inference_model(path: str, manifest_hash: str) -> tuple[Any, dict[str, int], dict[str, Any]]:
+    return load_model(Path(path))
+
+
+def inference_model(path: Path) -> tuple[Any, dict[str, int], dict[str, Any]]:
+    if not (path / "manifest.json").is_file():
+        return load_model(path)
+    raw = (path / "manifest.json").read_bytes()
+    manifest = json.loads(raw)
+    for filename, key in [
+        ("weights.safetensors", "weights_sha256"),
+        ("vocabulary.json", "vocabulary_sha256"),
+    ]:
+        if digest((path / filename).read_bytes()) != manifest[key]:
+            raise ReconError(
+                "MODEL_INTEGRITY",
+                "Model artifacts changed after loading. Install a verified package.",
+                409,
+            )
+    return _inference_model(str(path.resolve()), digest(raw))
+
+
 def neural_rank(
     queries: list[tuple[str, FunctionAnalysis]],
     targets: list[tuple[str, FunctionAnalysis]],
     path: Path,
     top_k: int,
     threshold: float,
+    index_path: Path | None = None,
 ) -> dict[str, Any]:
     import time
 
     start = time.perf_counter()
-    model, vocab, metadata = load_model(path)
-    target_vectors = embed(model, vocab, [f for _, f in targets]).astype("float32")
+    model, vocab, metadata = inference_model(path)
+    expected = {
+        "feature_schema": FEATURE_SCHEMA,
+        "model_version": metadata["model_version"],
+        "function_ids": [i for i, _ in targets],
+        "function_hashes": [f.bytes_hash for _, f in targets],
+    }
+    if index_path and index_path.is_file():
+        index_manifest = read_json(index_path.with_suffix(".json"))
+        if any(index_manifest.get(key) != value for key, value in expected.items()):
+            raise ReconError(
+                "INDEX_INCOMPATIBLE",
+                "Neural index belongs to different functions, feature schema, or model. Rebuild it.",
+                409,
+            )
+        raw_vectors = index_path.read_bytes()
+        if digest(raw_vectors) != index_manifest["vectors_sha256"]:
+            raise ReconError(
+                "INDEX_INTEGRITY", "Neural index vectors failed their integrity check.", 409
+            )
+        target_vectors = np.load(io.BytesIO(raw_vectors), allow_pickle=False)
+        if target_vectors.shape != (len(targets), 64) or not np.isfinite(target_vectors).all():
+            raise ReconError("INDEX_INCOMPATIBLE", "Neural index shape or values are invalid.", 409)
+    else:
+        target_vectors = embed(model, vocab, [f for _, f in targets]).astype("float32")
+        if index_path:
+            output = io.BytesIO()
+            np.save(output, target_vectors, allow_pickle=False)
+            raw_vectors = output.getvalue()
+            atomic_bytes(index_path, raw_vectors)
+            atomic_json(
+                index_path.with_suffix(".json"), {**expected, "vectors_sha256": digest(raw_vectors)}
+            )
     query_vectors = embed(model, vocab, [f for _, f in queries]).astype("float32")
-    try:
-        import faiss
+    from recon.indexing.search import exact_search
 
-        index = faiss.IndexFlatIP(target_vectors.shape[1])
-        index.add(target_vectors)
-        similarities, order = index.search(query_vectors, min(top_k, len(targets)))
-        engine = "faiss-exact-inner-product"
-    except ImportError:
-        matrix = query_vectors @ target_vectors.T
-        order = np.argsort(-matrix, axis=1, kind="stable")[:, :top_k]
-        similarities = np.take_along_axis(matrix, order, axis=1)
-        engine = "numpy-exact-inner-product"
+    similarities, order, engine = exact_search(query_vectors, target_vectors, top_k)
     results = []
     for pos, (query_id, query) in enumerate(queries):
         matches = []

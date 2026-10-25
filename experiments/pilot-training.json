@@ -1,1 +1,142 @@
-{"architecture": "64-dim token embedding \u2192 masked mean + log-CFG statistics \u2192 96 \u2192 64 normalized embedding", "best_validation_mrr": 0.5651010101010101, "cpu_threads": 1, "dataset_hash": "8172982109332c1e81c77e55ecadb83f6357389c3454d5022dbfecb54f9fdc42", "duration_seconds": 2.2796866669959854, "hardware": "arm", "history": [{"epoch": 1, "gradient_norm": 4.124714255332947, "loss": 1.665366768836975, "validation_mrr": 0.3927493778151673}, {"epoch": 2, "gradient_norm": 3.2974823713302612, "loss": 1.399962842464447, "validation_mrr": 0.42496354952237303}, {"epoch": 3, "gradient_norm": 3.0263466835021973, "loss": 0.874943733215332, "validation_mrr": 0.38824059927001103}, {"epoch": 4, "gradient_norm": 4.921185314655304, "loss": 0.8192121982574463, "validation_mrr": 0.4105007002801121}, {"epoch": 5, "gradient_norm": 3.8928931951522827, "loss": 0.5721175968647003, "validation_mrr": 0.4582638888888889}, {"epoch": 6, "gradient_norm": 4.133408188819885, "loss": 0.47029030323028564, "validation_mrr": 0.39849386724386726}, {"epoch": 7, "gradient_norm": 2.3677573204040527, "loss": 0.33827097713947296, "validation_mrr": 0.3534493284493284}, {"epoch": 8, "gradient_norm": 2.020327627658844, "loss": 0.2810104787349701, "validation_mrr": 0.3994017094017094}, {"epoch": 9, "gradient_norm": 3.1427674293518066, "loss": 0.31434500217437744, "validation_mrr": 0.4719017094017094}, {"epoch": 10, "gradient_norm": 1.5104838497936726, "loss": 0.3098946213722229, "validation_mrr": 0.5244444444444445}, {"epoch": 11, "gradient_norm": 1.2252426147460938, "loss": 0.24532727897167206, "validation_mrr": 0.5651010101010101}, {"epoch": 12, "gradient_norm": 2.8819968700408936, "loss": 0.3228283226490021, "validation_mrr": 0.4942676767676768}, {"epoch": 13, "gradient_norm": 1.7233793139457703, "loss": 0.14331084489822388, "validation_mrr": 0.5192676767676768}, {"epoch": 14, "gradient_norm": 1.7813419699668884, "loss": 0.24175845086574554, "validation_mrr": 0.505}, {"epoch": 15, "gradient_norm": 1.1043605357408524, "loss": 0.12249556183815002, "validation_mrr": 0.5337500000000001}, {"epoch": 16, "gradient_norm": 1.9603169411420822, "loss": 0.22408340871334076, "validation_mrr": 0.5504166666666667}, {"epoch": 17, "gradient_norm": 1.9849064350128174, "loss": 0.44036079943180084, "validation_mrr": 0.5283333333333333}, {"epoch": 18, "gradient_norm": 0.5068718753755093, "loss": 0.12621954083442688, "validation_mrr": 0.553989898989899}, {"epoch": 19, "gradient_norm": 0.3439526706933975, "loss": 0.03944866359233856, "validation_mrr": 0.5471825396825396}], "learning_rate": 0.003, "loss": "supervised contrastive InfoNCE", "model_version": "siamese-39d0c5aca865", "nondeterminism": "CPU deterministic algorithms requested; cross-platform floating point can differ.", "optimizer": "AdamW", "platform": "macOS-27.0.1-arm64-arm-64bit", "python": "3.12.14", "seed": 42, "selected_epoch": 11, "temperature": 0.1, "test_set_used_for_selection": false, "torch": "2.14.1", "training_lineages": 20, "training_projects": ["map", "vec"], "training_samples": 80}
+{
+  "architecture": "64-dim token embedding \u2192 masked mean + log-CFG statistics \u2192 96 \u2192 64 normalized embedding",
+  "best_validation_mrr": 0.5651010101010101,
+  "cpu_threads": 1,
+  "dataset_hash": "8172982109332c1e81c77e55ecadb83f6357389c3454d5022dbfecb54f9fdc42",
+  "duration_seconds": 2.2796866669959854,
+  "hardware": "arm",
+  "history": [
+    {
+      "epoch": 1,
+      "gradient_norm": 4.124714255332947,
+      "loss": 1.665366768836975,
+      "validation_mrr": 0.3927493778151673
+    },
+    {
+      "epoch": 2,
+      "gradient_norm": 3.2974823713302612,
+      "loss": 1.399962842464447,
+      "validation_mrr": 0.42496354952237303
+    },
+    {
+      "epoch": 3,
+      "gradient_norm": 3.0263466835021973,
+      "loss": 0.874943733215332,
+      "validation_mrr": 0.38824059927001103
+    },
+    {
+      "epoch": 4,
+      "gradient_norm": 4.921185314655304,
+      "loss": 0.8192121982574463,
+      "validation_mrr": 0.4105007002801121
+    },
+    {
+      "epoch": 5,
+      "gradient_norm": 3.8928931951522827,
+      "loss": 0.5721175968647003,
+      "validation_mrr": 0.4582638888888889
+    },
+    {
+      "epoch": 6,
+      "gradient_norm": 4.133408188819885,
+      "loss": 0.47029030323028564,
+      "validation_mrr": 0.39849386724386726
+    },
+    {
+      "epoch": 7,
+      "gradient_norm": 2.3677573204040527,
+      "loss": 0.33827097713947296,
+      "validation_mrr": 0.3534493284493284
+    },
+    {
+      "epoch": 8,
+      "gradient_norm": 2.020327627658844,
+      "loss": 0.2810104787349701,
+      "validation_mrr": 0.3994017094017094
+    },
+    {
+      "epoch": 9,
+      "gradient_norm": 3.1427674293518066,
+      "loss": 0.31434500217437744,
+      "validation_mrr": 0.4719017094017094
+    },
+    {
+      "epoch": 10,
+      "gradient_norm": 1.5104838497936726,
+      "loss": 0.3098946213722229,
+      "validation_mrr": 0.5244444444444445
+    },
+    {
+      "epoch": 11,
+      "gradient_norm": 1.2252426147460938,
+      "loss": 0.24532727897167206,
+      "validation_mrr": 0.5651010101010101
+    },
+    {
+      "epoch": 12,
+      "gradient_norm": 2.8819968700408936,
+      "loss": 0.3228283226490021,
+      "validation_mrr": 0.4942676767676768
+    },
+    {
+      "epoch": 13,
+      "gradient_norm": 1.7233793139457703,
+      "loss": 0.14331084489822388,
+      "validation_mrr": 0.5192676767676768
+    },
+    {
+      "epoch": 14,
+      "gradient_norm": 1.7813419699668884,
+      "loss": 0.24175845086574554,
+      "validation_mrr": 0.505
+    },
+    {
+      "epoch": 15,
+      "gradient_norm": 1.1043605357408524,
+      "loss": 0.12249556183815002,
+      "validation_mrr": 0.5337500000000001
+    },
+    {
+      "epoch": 16,
+      "gradient_norm": 1.9603169411420822,
+      "loss": 0.22408340871334076,
+      "validation_mrr": 0.5504166666666667
+    },
+    {
+      "epoch": 17,
+      "gradient_norm": 1.9849064350128174,
+      "loss": 0.44036079943180084,
+      "validation_mrr": 0.5283333333333333
+    },
+    {
+      "epoch": 18,
+      "gradient_norm": 0.5068718753755093,
+      "loss": 0.12621954083442688,
+      "validation_mrr": 0.553989898989899
+    },
+    {
+      "epoch": 19,
+      "gradient_norm": 0.3439526706933975,
+      "loss": 0.03944866359233856,
+      "validation_mrr": 0.5471825396825396
+    }
+  ],
+  "learning_rate": 0.003,
+  "loss": "supervised contrastive InfoNCE",
+  "model_version": "siamese-39d0c5aca865",
+  "nondeterminism": "CPU deterministic algorithms requested; cross-platform floating point can differ.",
+  "optimizer": "AdamW",
+  "platform": "macOS-27.0.1-arm64-arm-64bit",
+  "python": "3.12.14",
+  "seed": 42,
+  "selected_epoch": 11,
+  "temperature": 0.1,
+  "test_set_used_for_selection": false,
+  "torch": "2.14.1",
+  "training_lineages": 20,
+  "training_projects": [
+    "map",
+    "vec"
+  ],
+  "training_samples": 80
+}

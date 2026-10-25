@@ -1,0 +1,40 @@
+{
+  "baseline_all_query_ranking_seconds": 0.0033617090084590018,
+  "baseline_index_build_seconds": 0.007531375013059005,
+  "date": "2026-10-25",
+  "fixtures": [
+    {
+      "bytes": 4664,
+      "name": "demo-O0.elf"
+    },
+    {
+      "bytes": 6416,
+      "name": "demo-O2.elf"
+    }
+  ],
+  "functions_per_binary": [
+    9,
+    9
+  ],
+  "machine": "arm64",
+  "mean_parser_wall_seconds": 0.9239892780024093,
+  "model_cold_load_seconds": 0.8804550420027226,
+  "model_version": "siamese-39d0c5aca865",
+  "native_extraction_seconds": [
+    0.02342920799856074,
+    0.0075215420220047235,
+    0.00781479201395996
+  ],
+  "neural_index_engine": "faiss-exact-inner-product-isolated",
+  "neural_inference_index_and_search_seconds": 0.15346137501182966,
+  "platform": "macOS-27.0.1-arm64-arm-64bit",
+  "process_peak_rss_bytes": 278036480,
+  "python": "3.12.14",
+  "replicates": 3,
+  "scope": "Tiny known fixtures; cold worker startup included in wall time; process RSS includes Python, LIEF, sklearn and PyTorch. No target executed. Not a production-scale benchmark.",
+  "two_binary_parser_wall_seconds": [
+    1.103974041994661,
+    0.8321622500079684,
+    0.8358315420045983
+  ]
+}

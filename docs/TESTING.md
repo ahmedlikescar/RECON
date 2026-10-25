@@ -47,3 +47,20 @@ flow then passed. The invalid-upload and narrow-layout tests passed in both runs
 
 The installed FastAPI/Starlette test client emits one deprecation warning for
 its httpx compatibility layer. Tests pass; no warning is hidden.
+
+## 2026-10-25 hardening checkpoint
+
+Added streaming body-budget coverage, formula-safe CSV cells, analysis report export,
+reanalysis invalidation, evidence cleanup, packaged model integrity, persisted neural
+vectors and inference cache tests. The full backend suite passes after the changes;
+the final run finished with **44 passed** in 7.00 seconds. See `PROGRESS.md` for
+the end-of-day checkpoint.
+
+A direct FAISS/PyTorch in-process test caused a native segmentation fault on this
+macOS host (the first hardening run stopped after 16 tests). A dedicated run reproduced
+it. FAISS now executes in a bounded independent interpreter; the focused regression
+and full suite then passed. The local benchmark confirmed the isolated FAISS engine.
+
+Browser tests also assert that the demo workflow makes no external HTTP requests.
+All three browser tests and frontend type/unit/build checks passed again after
+formatting. Current source files are checked by Prettier, Ruff and mypy.

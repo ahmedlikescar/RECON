@@ -5,14 +5,30 @@ import numpy as np
 import pytest
 from recon import FEATURE_SCHEMA
 from recon.analysis.native import analyze_file
-from recon.config import Settings
+from recon.config import REPO_ROOT, Settings
 from recon.errors import ReconError
 from recon.ml.dataset import dataset_hash, near_duplicate_lineages, validate_dataset
 from recon.ml.metrics import retrieval_metrics
-from recon.ml.model import embed, encoder, load_model, save_package, tensors, vocabulary
+from recon.ml.model import (
+    embed,
+    encoder,
+    inference_model,
+    load_model,
+    neural_rank,
+    save_package,
+    tensors,
+    vocabulary,
+)
 from recon.ml.research import contrastive_loss, train
+from recon.storage.artifacts import read_json
 
 torch = pytest.importorskip("torch")
+
+
+def test_bundled_pilot_integrity():
+    model, vocab, manifest = load_model(REPO_ROOT / "models/pilot")
+    assert manifest["model_version"] == "siamese-39d0c5aca865"
+    assert len(vocab) > 2
 
 
 def test_metrics_against_hand_calculated_rankings():
@@ -127,3 +143,24 @@ def test_resume_matches_uninterrupted_training(fixtures, tmp_path):
     changed["dataset_hash"] = dataset_hash(changed)
     with pytest.raises(ReconError, match="same dataset"):
         train(changed, resumed, 4, 42, resume=True)
+
+
+def test_persisted_neural_index_and_model_cache(fixtures, tmp_path):
+    functions = analyze_file(fixtures / "demo-O0.elf", Settings()).functions
+    vocab = vocabulary(functions)
+    package = tmp_path / "model"
+    save_package(package, encoder(len(vocab)).eval(), vocab, {"dataset_hash": "fixture"})
+    assert inference_model(package)[0] is inference_model(package)[0]
+    pairs = [(str(i), f) for i, f in enumerate(functions)]
+    index = tmp_path / "index.npy"
+    first = neural_rank(pairs, pairs, package, 5, 0.65, index)
+    second = neural_rank(pairs, pairs, package, 5, 0.65, index)
+    assert index.is_file()
+    assert first["results"] == second["results"]
+    manifest = read_json(index.with_suffix(".json"))
+    manifest["feature_schema"] = "wrong"
+    from recon.storage.artifacts import atomic_json
+
+    atomic_json(index.with_suffix(".json"), manifest)
+    with pytest.raises(ReconError, match="different functions"):
+        neural_rank(pairs, pairs, package, 5, 0.65, index)

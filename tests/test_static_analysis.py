@@ -11,7 +11,7 @@ from recon.errors import ReconError
 from recon.features.baselines import BaselineIndex
 from recon.features.normalize import normalize
 from recon.security.process import run_analysis
-from recon.security.validation import inside, safe_filename, validate_elf
+from recon.security.validation import csv_cell, inside, safe_filename, validate_elf
 from recon.storage.artifacts import atomic_json, read_json
 
 
@@ -105,6 +105,13 @@ def test_filename_traversal_rejected(name):
 def test_artifact_path_cannot_escape(tmp_path):
     with pytest.raises(ReconError):
         inside(tmp_path, "../outside")
+
+
+@pytest.mark.parametrize(
+    "symbol", ["=SUM(1,2)", " +cmd", "-2+3", "@name", "\tfunction", "\nformula"]
+)
+def test_csv_untrusted_symbols_are_not_formulas(symbol):
+    assert csv_cell(symbol) == "'" + symbol
 
 
 @pytest.mark.parametrize("data", [b"", b"MZ" + b"0" * 100, b"\x7fELF", b"\x7fELF" + b"0" * 100])

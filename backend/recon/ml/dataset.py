@@ -141,6 +141,7 @@ def near_duplicate_lineages(samples: list[dict[str, Any]]) -> set[str]:
 
 def debug_labels(path: Path, source_name: str) -> dict[int, tuple[str, int]]:
     labels: dict[int, tuple[str, int]] = {}
+    ambiguous: set[int] = set()
     with path.open("rb") as stream:
         elf = ELFFile(stream)
         dwarf = elf.get_dwarf_info()
@@ -172,10 +173,14 @@ def debug_labels(path: Path, source_name: str) -> dict[int, tuple[str, int]]:
                 if Path(filename).name != source_name:
                     continue
                 name = attrs["DW_AT_name"].value.decode(errors="replace")
-                labels[int(attrs["DW_AT_low_pc"].value)] = (
-                    name,
-                    int(attrs["DW_AT_decl_line"].value),
-                )
+                address = int(attrs["DW_AT_low_pc"].value)
+                label = (name, int(attrs["DW_AT_decl_line"].value))
+                if address in labels and labels[address] != label:
+                    ambiguous.add(address)
+                else:
+                    labels[address] = label
+    for address in ambiguous:
+        labels.pop(address, None)
     return labels
 
 

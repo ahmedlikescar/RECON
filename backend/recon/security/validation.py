@@ -5,6 +5,12 @@ from pathlib import Path
 from recon.errors import ReconError
 
 
+def csv_cell(value: str) -> str:
+    if value.lstrip().startswith(("=", "+", "-", "@")) or value.startswith(("\t", "\r", "\n")):
+        return "'" + value
+    return value
+
+
 def safe_filename(name: str | None) -> str:
     name = name or "binary.elf"
     if len(name) > 200 or name in {".", ".."} or any(c in name for c in "/\\\x00"):
